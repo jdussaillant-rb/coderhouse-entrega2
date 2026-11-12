@@ -53,7 +53,7 @@ def configurar_logs() -> None:
     )
     # httpx registra cada request HTTP en INFO; se silencia para que se lean
     # los logs de validación y reintentos.
-    for ruidoso in ("httpx", "httpcore", "openai", "anthropic"):
+    for ruidoso in ("httpx", "httpx2", "httpcore", "openai", "anthropic"):
         logging.getLogger(ruidoso).setLevel(logging.WARNING)
 
 

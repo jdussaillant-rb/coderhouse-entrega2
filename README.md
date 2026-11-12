@@ -125,6 +125,62 @@ Los tests usan `tests/fake_llm.py`, un modelo de chat falso con respuestas guion
 
 ## Ejemplo de ejecución
 
+### Con OpenAI (`gpt-4o-mini`)
+
+Salida real de `python prueba_async.py`:
+
+```text
+INFO     pipeline | Usando OpenAI (gpt-4o-mini)
+INFO     pipeline | [ambiguo] LLM respondió (finish_reason=stop, tokens_salida=49)
+WARNING  pipeline | [ambiguo] Validación Pydantic fallida: 1 validation error for ExtraccionTecnica | tecnologias | List should have at least 1 item after validation, not 0 [type=too_short, ...]
+INFO     pipeline | [arquitectura] LLM respondió (finish_reason=stop, tokens_salida=94)
+INFO     pipeline | [arquitectura] Validación OK: 4 tecnología(s), criticidad=media
+INFO     pipeline | [arquitectura] Extracción válida en 1 intento(s)
+INFO     pipeline | [log_error] LLM respondió (finish_reason=stop, tokens_salida=101)
+INFO     pipeline | [log_error] Validación OK: 4 tecnología(s), criticidad=alta
+INFO     pipeline | [log_error] Extracción válida en 1 intento(s)
+WARNING  pipeline | [ambiguo] Reintento automático: intento 2
+WARNING  pipeline | [ambiguo] Validación Pydantic fallida: ...
+WARNING  pipeline | [ambiguo] Reintento automático: intento 3
+WARNING  pipeline | [ambiguo] Validación Pydantic fallida: ...
+ERROR    pipeline | [ambiguo] Sin objeto válido tras 3 intento(s): El objeto devuelto no cumple el esquema: ...
+```
+
+```json
+### arquitectura
+{
+  "tecnologias": ["FastAPI", "Nginx", "Redis", "PostgreSQL"],
+  "nivel_de_criticidad": "media",
+  "resumen_tecnico": "La API, construida con FastAPI y detrás de Nginx, experimenta problemas de rendimiento en horas pico debido a que el pool de conexiones de PostgreSQL se agota con más de 500 requests concurrentes, lo que causa un aumento en la latencia y timeouts en el frontend."
+}
+
+### log_error
+{
+  "tecnologias": ["Celery", "PostgreSQL", "RabbitMQ", "Kubernetes"],
+  "nivel_de_criticidad": "alta",
+  "resumen_tecnico": "Se ha producido un error operativo en la tarea de Celery 'billing.charge_invoice' debido a que se han agotado los slots de conexión disponibles en PostgreSQL, lo que impide nuevas conexiones. Esto ha llevado a un fallo en el contenedor 'billing-worker' en Kubernetes, que está en un estado de reinicio continuo."
+}
+
+### ambiguo
+FALLÓ LA VALIDACIÓN -> No se obtuvo un objeto válido tras 3 intento(s): ...
+
+Resumen: 2/3 textos con objeto válido
+```
+
+Prueba de estrés: el texto ambiguo no menciona tecnologías, así que el modelo devuelve una lista vacía. El validador la rechaza en los 3 intentos y el pipeline lanza la excepción en lugar de devolver un objeto inválido.
+
+Con `python prueba_async.py --max-tokens 30`, el modelo se queda sin tokens a mitad del objeto y el pipeline lo detecta por el `finish_reason`:
+
+```text
+INFO     pipeline | [arquitectura] LLM respondió (finish_reason=length, tokens_salida=30)
+WARNING  pipeline | [arquitectura] Respuesta truncada por límite de tokens (finish_reason=length); se descarta.
+WARNING  pipeline | [arquitectura] Reintento automático: intento 2
+...
+ERROR    pipeline | [arquitectura] Sin objeto válido tras 3 intento(s): La respuesta del LLM quedó incompleta (finish_reason=length).
+```
+
+### Sin API key (`--offline`)
+
 Extracto de la salida de `python prueba_async.py --offline`. El modelo falso falla a propósito en el primer intento de cada texto:
 
 ```text
